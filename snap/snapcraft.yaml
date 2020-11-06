@@ -16,9 +16,72 @@ parts:
         override-build: |
             snapcraftctl build
             version=$(basename ${SNAPCRAFT_PART_INSTALL}/initrd.img-* | cut -c 12-)
-            snapcraftctl set-version 18-${version}
+            snapcraftctl set-version 18-fde-${version}
         organize:
-            "initrd.img-*": initrd.img
+            "initrd.img-*": initrd-vanilla.img
+        prime:
+            - -*
+
+    initrd-fde:
+        plugin: nil
+        after:
+           - initrd
+        stage-packages:
+            - cryptsetup-bin
+            - dmsetup
+            - e2fsprogs
+            - rsync
+            - libargon2-0
+            - libcryptsetup12
+            - libgcrypt20
+            - libgpg-error0
+            - libjson-c3
+            - libpopt0
+        override-build: |
+            echo "Cleaning staged packages first"
+            for d in lib/systemd etc usr/share \
+                     usr/lib/gcc \
+                     var \
+                     sbin/e2fsck \
+                     sbin/dumpe2fs \
+                     sbin/resize2fs
+            do
+                [ -e ${SNAPCRAFT_PART_INSTALL}/${d} ] && rm -rf ${SNAPCRAFT_PART_INSTALL}/${d}
+            done
+            find  ${SNAPCRAFT_PART_INSTALL}/lib/ \
+               ! -name "libcryptsetup.so.*" \
+               ! -name "libgcrypt.so.*" \
+               ! -name "libgpg-error.so.*" \
+               ! -name "libcrypto.so*" \
+               ! -name "libssl.so*" \
+               ! -name "libbsd.so*" \
+               ! -name "libjson-c.so*" \
+               ! -name "*.rules" \
+               \( -type f -o -type l \) \
+               -exec rm -v {} \;
+            find  ${SNAPCRAFT_PART_INSTALL}/usr/lib \
+               ! -name "libargon2.so*" \
+               ! -name "libonig.so.*" \
+               \( -type f -o -type l \) \
+               -exec rm -v {} \;
+
+            rm -rf initrd-repack
+            # we cannot use unmkinitramfs as pre focal one does not support lz4
+            mkdir -p initrd-repack
+            cd initrd-repack
+            cat ${SNAPCRAFT_STAGE}/initrd-vanilla.img | lz4 -dc | cpio -dim
+
+            if [ -d ${SNAPCRAFT_PART_BUILD}/initrd-repack/main ]; then
+
+              dest_dir=${SNAPCRAFT_PART_BUILD}/initrd-repack/main/
+            else
+              dest_dir=${SNAPCRAFT_PART_BUILD}/initrd-repack/
+            fi
+            cp -r ${SNAPCRAFT_PART_INSTALL}/* ${dest_dir}
+            # fix search for device with writable label
+            sed -i 's/.*local part=.*/    local part=\$\(findfs \"LABEL=\$label\" 2>\/dev\/null \|\| :\)/g' \
+              ${dest_dir}/scripts/ubuntu-core-functions
+            find . | cpio --create --quiet --format='newc' --owner=0:0 | lz4 -9 -l > ${SNAPCRAFT_PART_INSTALL}/initrd.img
         stage:
             - initrd.img
 
