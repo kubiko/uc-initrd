@@ -12,11 +12,11 @@ parts:
         source: .
         plugin: make
         make-parameters:
-            - RELEASE=bionic
+            - RELEASE=xenial
         override-build: |
             snapcraftctl build
             version=$(basename ${SNAPCRAFT_PART_INSTALL}/initrd.img-* | cut -c 12-)
-            snapcraftctl set-version 18-${version}
+            snapcraftctl set-version 16-${version}
         organize:
             "initrd.img-*": initrd.img
         stage:
