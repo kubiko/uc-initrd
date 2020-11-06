@@ -1,0 +1,29 @@
+name: uc-initrd
+summary: initrd for Ubuntu core
+description: initrd for Ubuntu core
+grade: stable
+confinement: strict
+adopt-info: initrd
+
+base: core18
+
+parts:
+    initrd:
+        source: .
+        plugin: make
+        make-parameters:
+            - RELEASE=bionic
+        override-build: |
+            snapcraftctl build
+            version=$(basename ${SNAPCRAFT_PART_INSTALL}/initrd.img-* | cut -c 12-)
+            snapcraftctl set-version 18-${version}
+        organize:
+            "initrd.img-*": initrd.img
+        stage:
+            - initrd.img
+
+build-packages:
+    - cpio
+    - debootstrap
+    - initramfs-tools-core
+    - liblz4-tool
