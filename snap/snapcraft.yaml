@@ -1,0 +1,40 @@
+name: uc-initrd
+base: core20
+version: 20-1
+summary: Ubuntu Core initrd
+description: |
+  Ubuntu Core initrd
+
+grade: stable
+confinement: strict
+
+parts:
+    initrd:
+        plugin: nil
+        override-build: |
+            # UC20 initrd builder only supports native build!
+            # build UC20 initrd
+            if [ -z "$(which ubuntu-core-initramfs)" ]; then
+                sudo add-apt-repository -y ppa:snappy-dev/image
+                sudo apt-get install -y ubuntu-core-initramfs
+            fi
+            # first prepare empty kernel modules structure. We want *vanilla* initrd anyway
+            kernel_version="5.4.0"
+            modules_path=lib/modules
+            modules_path_release=${modules_path}/${kernel_version}
+            mkdir -p ${modules_path_release}
+            touch ${modules_path_release}/modules.builtin
+            touch ${modules_path_release}/modules.order
+            depmod -b . ${kernel_version}
+            # we need to run tool as root to get rigt permissions
+            mkdir -p clean-initrd
+            sudo ubuntu-core-initramfs create-initrd \
+                --kerneldir ${modules_path} \
+                --kernelver ${kernel_version} \
+                --output ${SNAPCRAFT_PART_INSTALL}/initrd
+            sudo chown ${USER}:${USER} ${SNAPCRAFT_PART_INSTALL}/initrd*
+        organize:
+            "initrd-*": initrd.img
+
+build-packages:
+    - software-properties-common
