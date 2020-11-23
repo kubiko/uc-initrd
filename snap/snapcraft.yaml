@@ -1,6 +1,7 @@
 name: uc-initrd
 base: core20
-version: 20-1
+version: '0'
+version-script: echo "20-$(apt-cache search --names-only "linux-image-5.4.0.*-generic" | sort | tail -1 | awk -F '-' '{print $3"-"$4}')"
 summary: Ubuntu Core initrd
 description: |
   Ubuntu Core initrd
