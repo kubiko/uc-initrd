@@ -35,7 +35,18 @@ parts:
                 --output ${SNAPCRAFT_PART_INSTALL}/initrd
             sudo chown ${USER}:${USER} ${SNAPCRAFT_PART_INSTALL}/initrd*
         organize:
-            "initrd-*": initrd.img
+            "initrd-*": vanilla-initrd.img
+
+    initrd-repack:
+        plugin: nil
+        after:
+            - initrd
+        override-build: |
+            # remove any kernel modules added here
+            unmkinitramfs ${SNAPCRAFT_STAGE}/vanilla-initrd.img .
+            rm -rf usr/lib/modules/*
+            find . | cpio --create --quiet --format='newc' --owner=0:0 | lz4 -l -7 > ${SNAPCRAFT_PART_INSTALL}/initrd.img
 
 build-packages:
     - software-properties-common
+    - initramfs-tools-core
