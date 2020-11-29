@@ -1,7 +1,7 @@
 name: uc-initrd
 base: core22
 version: '0'
-version-script: echo "20-$(apt-cache search --names-only "linux-image-5.4.0.*-generic" | sort | tail -1 | awk -F '-' '{print $3"-"$4}')"
+version-script: echo "20-edge-$(grep version parts/snap-bootstrap/install/meta.snapd/snap.yaml | awk '{print $2}' | awk -F '.' '{ OFS = "." }{ $NF = ""; print $0}'| sed 's/.$//')"
 summary: Ubuntu Core initrd
 description: |
   Ubuntu Core initrd
@@ -35,17 +35,39 @@ parts:
             sudo chown ${USER}:${USER} ${SNAPCRAFT_PART_INSTALL}/initrd*
         organize:
             "initrd-*": vanilla-initrd.img
+        prime:
+            - -*
+
+    snap-bootstrap:
+        plugin: nil
+        stage-snaps:
+            - snapd/latest/edge
+        organize:
+            usr/lib/snapd/snap-bootstrap: snap-bootstrap
+        stage:
+            - snap-bootstrap
+        prime:
+            - -*
 
     initrd-repack:
         plugin: nil
         after:
+            - snap-bootstrap
             - initrd
         override-build: |
-            # remove any kernel modules added here
+            # replace custom snap-bootstrap in initrd
+            echo "Replacing snap-bootstrap with custom one"
             unmkinitramfs ${SNAPCRAFT_STAGE}/vanilla-initrd.img .
             rm -rf usr/lib/modules/*
+            # check if initrd is nested (amd64)
+            if [ -d main ]; then
+              cp ${SNAPCRAFT_STAGE}/snap-bootstrap main/usr/lib/snapd/snap-bootstrap
+            else
+              cp ${SNAPCRAFT_STAGE}/snap-bootstrap usr/lib/snapd/snap-bootstrap
+            fi
             find . | cpio --create --quiet --format='newc' --owner=0:0 | lz4 -l -7 > ${SNAPCRAFT_PART_INSTALL}/initrd.img
 
 build-packages:
     - software-properties-common
     - initramfs-tools-core
+    - lz4
