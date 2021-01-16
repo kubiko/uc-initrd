@@ -1,7 +1,7 @@
 name: uc-initrd
 base: core20
 version: '0'
-version-script: echo "20-lk-$(apt-cache search --names-only "linux-image-5.4.0.*-generic" | sort | tail -1 | awk -F '-' '{print $3"-"$4}')"
+version-script: echo "20-edge-$(apt-cache search --names-only "linux-image-5.4.0.*-generic" | sort | tail -1 | awk -F '-' '{print $3"-"$4}')"
 summary: Ubuntu Core initrd
 description: |
   Ubuntu Core initrd
@@ -40,27 +40,12 @@ parts:
 
     snap-bootstrap:
         plugin: nil
-        build-snaps:
-            - go
-        override-pull: |
-            mkdir -p go/src/github.com/snapcore
-            # https://github.com/snapcore/snapd.git \
-            git clone https://github.com/kubiko/snapd.git \
-                      -b uc20-lk-bootloader \
-                      go/src/github.com/snapcore/snapd
-        override-build: |
-            GOPATH=${SNAPCRAFT_PART_BUILD}/go
-            export GOPATH
-            cd ${SNAPCRAFT_PART_BUILD}/go/src/github.com/snapcore/snapd
-            ./get-deps.sh
-            # handle cross build case
-            if [ "$(arch)" != "aarch64" ]; then
-                echo "Cross compilation detected"
-                CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build \
-                    -o ${SNAPCRAFT_PART_INSTALL}/snap-bootstrap ./cmd/snap-bootstrap/
-            else
-                CGO_ENABLED=1 go build -o ${SNAPCRAFT_PART_INSTALL}/snap-bootstrap ./cmd/snap-bootstrap
-            fi
+        stage-snaps:
+            - snapd/latest/edge
+        organize:
+            usr/lib/snapd/snap-bootstrap: snap-bootstrap
+        stage:
+            - snap-bootstrap
         prime:
             - -*
 
