@@ -60,8 +60,11 @@ parts:
             unmkinitramfs ${SNAPCRAFT_STAGE}/vanilla-initrd.img .
             rm -rf usr/lib/modules/*
             # check if initrd is nested (amd64)
-            [ -d main ] && main="main/"
-            cp ${SNAPCRAFT_STAGE}/snap-bootstrap ${main}usr/lib/snapd/snap-bootstrap
+            if [ -d main ]; then
+              cp ${SNAPCRAFT_STAGE}/snap-bootstrap main/usr/lib/snapd/snap-bootstrap
+            else
+              cp ${SNAPCRAFT_STAGE}/snap-bootstrap usr/lib/snapd/snap-bootstrap
+            fi
             find . | cpio --create --quiet --format='newc' --owner=0:0 | lz4 -l -7 > ${SNAPCRAFT_PART_INSTALL}/initrd.img
 
 build-packages:
