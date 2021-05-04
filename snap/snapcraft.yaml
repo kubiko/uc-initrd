@@ -21,8 +21,7 @@ parts:
             fi
             # first prepare empty kernel modules structure. We want *vanilla* initrd anyway
             kernel_version="5.4.0"
-            modules_path=lib/modules
-            modules_path_release=${modules_path}/${kernel_version}
+            modules_path_release="lib/modules/${kernel_version}"
             mkdir -p ${modules_path_release}
             touch ${modules_path_release}/modules.builtin
             touch ${modules_path_release}/modules.order
@@ -30,7 +29,7 @@ parts:
             # we need to run tool as root to get rigt permissions
             mkdir -p clean-initrd
             sudo ubuntu-core-initramfs create-initrd \
-                --kerneldir ${modules_path} \
+                --kerneldir ${modules_path_release} \
                 --kernelver ${kernel_version} \
                 --output ${SNAPCRAFT_PART_INSTALL}/initrd
             sudo chown ${USER}:${USER} ${SNAPCRAFT_PART_INSTALL}/initrd*
