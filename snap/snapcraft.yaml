@@ -35,6 +35,8 @@ parts:
             sudo chown ${USER}:${USER} ${SNAPCRAFT_PART_INSTALL}/initrd*
         organize:
             "initrd-*": vanilla-initrd.img
+        prime:
+            - -*
 
     initrd-repack:
         plugin: nil
