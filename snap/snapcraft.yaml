@@ -1,7 +1,7 @@
 name: uc-initrd
 base: core20
 version: '0'
-version-script: echo "20-edge-$(grep version parts/snap-bootstrap/install/meta.snapd/snap.yaml | awk '{print $2}' | awk -F '.' '{ OFS = "." }{ $NF = ""; print $0}'| sed 's/.$//')"
+version-script: echo "20-edge-splash-$(grep version parts/snap-bootstrap/install/meta.snapd/snap.yaml | awk '{print $2}' | awk -F '.' '{ OFS = "." }{ $NF = ""; print $0}'| sed 's/.$//')"
 summary: Ubuntu Core initrd
 description: |
   Ubuntu Core initrd
@@ -49,9 +49,67 @@ parts:
         prime:
             - -*
 
+    psplash:
+        plugin: autotools
+        source: https://github.com/kubiko/ubuntu-psplash.git
+        autotools-configure-parameters:
+            - --build=${SNAPCRAFT_ARCH_TRIPLET}
+            - --host=${SNAPCRAFT_ARCH_TRIPLET}
+            - --prefix=/usr
+            - --with-systemd
+            - --with-font=ubuntu
+            - CC=${SNAPCRAFT_ARCH_TRIPLET}-gcc
+            - LIBS="-lsystemd"
+        override-pull: |
+            snapcraftctl pull
+            sed -i 's/POKY_IMG/CORE_IMG/g' psplash.c
+            otf2bdf -p 22 -r 75 -v \
+              $(ls /usr/share/fonts/truetype/*/Ubuntu-R.ttf) \
+              -o ubuntu.bdf || res=$?
+            if [ "$res" != "8" ]; then
+              echo "Unexpected exit code from otf2bdf, should be 8"
+              exit 1
+            fi
+            bdftobogl ubuntu.bdf > ubuntu-font.h
+            sed -i \
+                -e 's/#include "bogl\.h"/#include "psplash\.h"/g' \
+                -e 's/struct bogl_font font_ubuntu/PSplashFont ubuntu_font/g' \
+                ubuntu-font.h
+            ln -sf core_orange_hex.png psplash-core.png
+            ./make-image-header.sh psplash-core.png CORE
+            sed -i \
+                -e 's/psplash-poky-img.h/psplash-core-img.h/g' \
+                Makefile.am psplash.c
+        override-build: |
+            snapcraftctl build
+            install -m 644 -T -D \
+                psplash-start.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/psplash-start.service
+            install -m 644 -T -D \
+                psplash-systemd-initrd.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/psplash-systemd-initrd.service
+             install -m 644 -T -D \
+                psplash-systemd-setup.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/psplash-systemd-setup.service
+            mkdir -p \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/basic.target.wants \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/run-mnt-data.mount.wants
+            ln -sf \
+                ../psplash-start.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/basic.target.wants/psplash-start.service
+            ln -sf \
+                ../psplash-systemd-initrd.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/basic.target.wants/psplash-systemd-initrd.service
+            ln -sf \
+                ../psplash-systemd-setup.service \
+                ${SNAPCRAFT_PART_INSTALL}/usr/lib/systemd/system/run-mnt-data.mount.wants/psplash-systemd-setup.service
+        prime:
+            - -*
+
     initrd-repack:
         plugin: nil
         after:
+            - psplash
             - snap-bootstrap
             - initrd
         override-build: |
@@ -62,14 +120,21 @@ parts:
             # check if initrd is nested (amd64)
             if [ -d main ]; then
               cp ${SNAPCRAFT_STAGE}/snap-bootstrap main/usr/lib/snapd/snap-bootstrap
+              cp -r ${SNAPCRAFT_STAGE}/usr main/
             else
               cp ${SNAPCRAFT_STAGE}/snap-bootstrap usr/lib/snapd/snap-bootstrap
+              cp -r ${SNAPCRAFT_STAGE}/usr .
             fi
             find . | cpio --create --quiet --format='newc' --owner=0:0 | lz4 -l -7 > ${SNAPCRAFT_PART_INSTALL}/initrd.img
 
 build-packages:
-    - software-properties-common
-    - initramfs-tools-core
     - build-essential
+    - initramfs-tools-core
+    - fonts-ubuntu
     - gcc
     - lz4
+    - libbogl-dev
+    - libgdk-pixbuf2.0-bin
+    - libsystemd-dev
+    - otf2bdf
+    - software-properties-common
