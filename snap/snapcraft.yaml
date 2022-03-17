@@ -1,5 +1,5 @@
 name: uc-initrd
-base: core20
+base: core22
 version: '0'
 version-script: echo "20-$(apt-cache search --names-only "linux-image-5.4.0.*-generic" | sort | tail -1 | awk -F '-' '{print $3"-"$4}')"
 summary: Ubuntu Core initrd
@@ -20,7 +20,7 @@ parts:
                 sudo apt-get install -y ubuntu-core-initramfs
             fi
             # first prepare empty kernel modules structure. We want *vanilla* initrd anyway
-            kernel_version="5.4.0"
+            kernel_version="5.15.0"
             modules_path_release="lib/modules/${kernel_version}"
             mkdir -p ${modules_path_release}
             touch ${modules_path_release}/modules.builtin
