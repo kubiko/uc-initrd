@@ -41,7 +41,7 @@ parts:
     snap-bootstrap:
         plugin: nil
         stage-snaps:
-            - snapd/latest/edge
+            - snapd/latest/beta/wendover
         organize:
             usr/lib/snapd/snap-bootstrap: snap-bootstrap
         stage:
