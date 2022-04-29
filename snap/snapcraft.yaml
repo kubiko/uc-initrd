@@ -1,7 +1,7 @@
 name: uc-initrd
 base: core20
 version: '0'
-version-script: echo "20-beta-$(grep version parts/snap-bootstrap/install/meta.snapd/snap.yaml | awk '{print $2}')"
+version-script: echo "20-$(grep version parts/snap-bootstrap/install/meta.snapd/snap.yaml | awk '{print $2}')"
 summary: Ubuntu Core initrd
 description: |
   Ubuntu Core initrd
